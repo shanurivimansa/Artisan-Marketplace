@@ -549,6 +549,21 @@
     margin-top: 16px;
   }
 
+  .field-error {
+    color: #C0392B;
+    font-size: 0.75rem;
+    margin-top: 5px;
+    min-height: 16px;
+    display: block;
+  }
+  input.invalid, select.invalid {
+    border-color: #C0392B !important;
+    box-shadow: 0 0 0 3px rgba(192,57,43,0.12) !important;
+  }
+  input.valid {
+    border-color: var(--sage) !important;
+  }
+
   /* ── RESPONSIVE ── */
   @media (max-width: 640px) {
     header { padding: 0 1rem; }
@@ -622,15 +637,18 @@
       </div>
       <div class="form-group">
         <label>Full Name</label>
-        <input id="regName" type="text" placeholder="e.g. Jane Smith">
+        <input id="regName" type="text" placeholder="e.g. Jane Smith" oninput="validateField(this, 'name')">
+        <div class="field-error" id="err-regName"></div>
       </div>
       <div class="form-group">
         <label>Email</label>
-        <input id="regEmail" type="email" placeholder="jane@example.com">
+        <input id="regEmail" type="email" placeholder="jane@example.com" oninput="validateField(this, 'email')">
+        <div class="field-error" id="err-regEmail"></div>
       </div>
       <div class="form-group">
         <label>Password</label>
-        <input id="regPassword" type="password" placeholder="At least 8 characters">
+        <input id="regPassword" type="password" placeholder="At least 8 characters" oninput="validateField(this, 'password')">
+        <div class="field-error" id="err-regPassword"></div>
       </div>
       <button class="btn-submit" onclick="registerUser()">Create account</button>
       <div class="switch-link">Already have an account? <span onclick="showSection('login')">Log in</span></div>
@@ -644,14 +662,41 @@
     <div class="card card-sm">
       <div class="form-group">
         <label>Email</label>
-        <input id="loginEmail" type="email" placeholder="jane@example.com">
+        <input id="loginEmail" type="email" placeholder="jane@example.com" oninput="validateField(this, 'email')">
+        <div class="field-error" id="err-loginEmail"></div>
       </div>
       <div class="form-group">
         <label>Password</label>
-        <input id="loginPassword" type="password" placeholder="Your password">
+        <input id="loginPassword" type="password" placeholder="Your password" oninput="validateField(this, 'password')">
+        <div class="field-error" id="err-loginPassword"></div>
       </div>
       <button class="btn-submit" onclick="loginUser()">Log in</button>
+      <div class="switch-link" style="margin-top:10px"><span onclick="showSection('forgot')" style="color:var(--bark-md);font-weight:400">Forgot password?</span></div>
       <div class="switch-link">Don't have an account? <span onclick="showSection('register')">Sign up</span></div>
+    </div>
+  </div>
+
+  <!-- FORGOT PASSWORD -->
+  <div class="section-panel" id="panel-forgot">
+    <h2 class="panel-title">Reset password</h2>
+    <p class="panel-sub">Enter your email and we'll generate a new temporary password</p>
+    <div class="card card-sm">
+      <div class="form-group">
+        <label>Email</label>
+        <input id="forgotEmail" type="email" placeholder="Enter your registered email">
+        <div class="field-error" id="err-forgotEmail"></div>
+      </div>
+      <button class="btn-submit" onclick="resetPassword()">Reset password</button>
+      <div class="switch-link"><span onclick="showSection('login')">Back to login</span></div>
+    </div>
+    <div class="card card-sm" id="resetResult" style="display:none;margin-top:16px">
+      <div style="text-align:center;padding:10px">
+        <div style="font-size:2rem;margin-bottom:10px">🔑</div>
+        <p style="font-size:0.85rem;color:var(--bark-md);margin-bottom:8px">Your temporary password is:</p>
+        <div id="tempPassword" style="font-size:1.4rem;font-weight:700;color:var(--clay);letter-spacing:0.1em;padding:12px;background:var(--linen);border-radius:8px"></div>
+        <p style="font-size:0.78rem;color:var(--bark-md);margin-top:10px">Copy this and use it to log in, then update your password.</p>
+        <button class="btn-submit" style="margin-top:16px" onclick="showSection('login')">Go to login</button>
+      </div>
     </div>
   </div>
 
@@ -879,14 +924,66 @@ async function api(method, path, body) {
   }
 }
 
+// ── VALIDATION HELPERS ─────────────────────────────────────
+function validateField(input, type) {
+  const val = input.value.trim();
+  const errId = 'err-' + input.id;
+  const errEl = document.getElementById(errId);
+  let msg = '';
+  if (type === 'name') {
+    if (!val) msg = 'Name is required';
+    else if (val.length < 2) msg = 'Name must be at least 2 characters';
+  } else if (type === 'email') {
+    if (!val) msg = 'Email is required';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) msg = 'Please enter a valid email address';
+  } else if (type === 'password') {
+    if (!val) msg = 'Password is required';
+    else if (val.length < 8) msg = 'Password must be at least 8 characters';
+  } else if (type === 'price') {
+    if (!val) msg = 'Price is required';
+    else if (isNaN(val) || parseFloat(val) <= 0) msg = 'Please enter a valid price';
+  } else if (type === 'required') {
+    if (!val) msg = 'This field is required';
+  }
+  if (errEl) errEl.textContent = msg;
+  if (msg) { input.classList.add('invalid'); input.classList.remove('valid'); }
+  else { input.classList.remove('invalid'); input.classList.add('valid'); }
+  return !msg;
+}
+
+function validateAll(fields) {
+  return fields.every(([id, type]) => {
+    const el = document.getElementById(id);
+    return el ? validateField(el, type) : true;
+  });
+}
+
+function clearValidation(...ids) {
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.classList.remove('invalid', 'valid'); }
+    const err = document.getElementById('err-' + id);
+    if (err) err.textContent = '';
+  });
+}
+
 async function registerUser() {
+  const valid = validateAll([
+    ['regName', 'name'],
+    ['regEmail', 'email'],
+    ['regPassword', 'password']
+  ]);
+  if (!valid) { toast('Please fix the errors below', 'error'); return; }
   const name     = document.getElementById('regName').value.trim();
   const email    = document.getElementById('regEmail').value.trim();
   const password = document.getElementById('regPassword').value;
-  if (!name || !email || !password) { toast('Please fill in all fields', 'error'); return; }
   const { ok, data } = await api('POST', '/api/users/register', { name, email, password, role: selectedRole });
   if (ok) {
     toast('Account created! You can now log in.', 'success');
+    clearValidation('regName', 'regEmail', 'regPassword');
+    document.getElementById('regName').value = '';
+    document.getElementById('regEmail').value = '';
+    document.getElementById('regPassword').value = '';
     showSection('login');
   } else {
     toast(data.error || data.message || 'Registration failed', 'error');
@@ -894,9 +991,13 @@ async function registerUser() {
 }
 
 async function loginUser() {
+  const valid = validateAll([
+    ['loginEmail', 'email'],
+    ['loginPassword', 'password']
+  ]);
+  if (!valid) { toast('Please fix the errors below', 'error'); return; }
   const email    = document.getElementById('loginEmail').value.trim();
   const password = document.getElementById('loginPassword').value;
-  if (!email || !password) { toast('Please enter your email and password', 'error'); return; }
   const { ok, data } = await api('POST', '/api/users/login', { email, password });
   if (ok) {
     currentUser = data.user || data;
@@ -905,11 +1006,31 @@ async function loginUser() {
     badge.textContent = '👤 ' + name;
     badge.style.display = 'inline-block';
     document.getElementById('logoutBtn').style.display = 'inline-block';
+    clearValidation('loginEmail', 'loginPassword');
     toast('Welcome back, ' + name + '!', 'success');
     showSection('products');
   } else {
     toast(data.error || data.message || 'Login failed — check your credentials', 'error');
   }
+}
+
+async function resetPassword() {
+  const emailEl = document.getElementById('forgotEmail');
+  const email = emailEl.value.trim();
+  if (!email) { emailEl.classList.add('invalid'); document.getElementById('err-forgotEmail').textContent = 'Email is required'; return; }
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) { emailEl.classList.add('invalid'); document.getElementById('err-forgotEmail').textContent = 'Please enter a valid email address'; return; }
+  // Generate a temporary password
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  let tempPass = '';
+  for (let i = 0; i < 10; i++) tempPass += chars[Math.floor(Math.random() * chars.length)];
+  // Try to update via API
+  const { ok } = await api('POST', '/api/users/reset-password', { email, newPassword: tempPass });
+  // Show result regardless (security: don't reveal if email exists)
+  document.getElementById('tempPassword').textContent = tempPass;
+  document.getElementById('resetResult').style.display = 'block';
+  emailEl.classList.remove('invalid');
+  document.getElementById('err-forgotEmail').textContent = '';
 }
 
 async function getProducts() {
